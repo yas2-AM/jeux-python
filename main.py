@@ -14,7 +14,7 @@ class Tuyau(Entity):
         self.score_tag = True  # Permet de compter le score
 
 def update():
-    global offset, en_cours, n_frame, score, texte, vitesse_oiseau
+    global offset, en_cours, n_frame, score, texte, vitesse_oiseau, niveau, passages, passages_cible, texte_restart
 
     if en_cours:
         # Jouer un son périodiquement
@@ -45,8 +45,15 @@ def update():
             # Augmenter le score si l'oiseau passe un tuyau
             if tuyaux_haut[m].x < oiseau.x and tuyaux_haut[m].score_tag:
                 score += 1
+                passages += 1
                 texte.text = f"Score : {score}"
                 tuyaux_haut[m].score_tag = False
+
+        # Condition de victoire : Passer par 3 tuyaux
+        if passages >= passages_cible:
+            en_cours = False
+            passages = 0  # Réinitialiser les passages pour le prochain niveau
+            invoke(niveau_suivant, delay=1)
 
         # Vérifier les collisions
         hit_info = oiseau.intersects()
@@ -58,7 +65,19 @@ def update():
 
 def ecran_crash():
     global texte_restart
+    if texte_restart:
+        destroy(texte_restart)  # Supprimer tout ancien message de redémarrage
     texte_restart = Text(text='Crashé ! Appuyez sur R pour recommencer !', origin=(0, 0), scale=2, color=color.red)
+
+def niveau_suivant():
+    global niveau, gravite, passages_cible, texte_restart, texte
+    niveau += 1
+    gravite += 1  # Augmenter la gravité pour plus de difficulté
+    passages_cible += 3  # Augmenter les passages nécessaires pour le niveau suivant
+    if texte_restart:
+        destroy(texte_restart)  # Supprimer le message de redémarrage avant de continuer
+    texte_restart = Text(text=f'Niveau {niveau} atteint ! Appuyez sur R pour continuer !', origin=(0, 0), scale=2, color=color.green)
+    texte.text = f"Score : {score} (Niveau {niveau})"
 
 def input(touche):
     global en_cours, vitesse_oiseau, texte_restart
@@ -71,16 +90,19 @@ def input(touche):
             destroy(texte_restart)
 
 def redemarrer_jeu():
-    global en_cours, score, vitesse_oiseau, tuyaux_haut, tuyaux_bas, texte
+    global en_cours, score, vitesse_oiseau, tuyaux_haut, tuyaux_bas, texte, passages, texte_restart
     en_cours = True
     score = 0
     vitesse_oiseau = 0
+    passages = 0
     oiseau.y = 1.5
     oiseau.fade_in(duration=1)  # Faire réapparaître l'oiseau
     for m in range(nombre):
         tuyaux_haut[m].x = 6 + 4 * m
         tuyaux_bas[m].x = 6 + 4 * m
     texte.text = f"Score : {score}"
+    if texte_restart:
+        destroy(texte_restart)  # Supprimer le message de redémarrage lors du redémarrage
 
 # Code principal
 app = Ursina()
@@ -94,6 +116,10 @@ x = 6
 score = 0
 gravite = 5  # Réduit la gravité pour ralentir la descente
 vitesse_oiseau = 0
+niveau = 1  # Niveau initial
+passages = 0  # Nombre de tuyaux passés
+passages_cible = 3  # Nombre de tuyaux nécessaires pour gagner
+texte_restart = None  # Initialisation pour éviter les erreurs
 
 # Arrière-plan
 bg = Entity(model='quad', scale=(20, 10), texture='assets/BG2.png', z=0.1)
@@ -123,5 +149,3 @@ for m in range(1, nombre):
 texte = Text(text=f"Score : {score}", position=(-0.65, 0.4), origin=(0, 0), scale=2, color=color.yellow, background=True)
 
 app.run()
-
-      
